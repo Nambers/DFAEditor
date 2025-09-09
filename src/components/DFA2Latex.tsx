@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { DataContext } from './DataProvider';
 import type { Node, Edge } from './DataProvider';
+import { toast } from 'sonner'
 
 interface LatexExportProps {
     isOpen: boolean;
@@ -139,7 +140,7 @@ const LatexExport: React.FC<LatexExportProps> = ({ isOpen, onClose }) => {
     const copyToClipboard = useCallback(async () => {
         try {
             await navigator.clipboard.writeText(generatedLatex);
-            alert('LaTeX code copied to clipboard!');
+            toast.success('LaTeX code copied to clipboard!');
         } catch (err) {
             console.error('Failed to copy: ', err);
         }
