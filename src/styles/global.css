@@ -1,0 +1,25 @@
+a {
+    color: #007BFF;
+    /* Default blue color for links */
+    text-decoration: none;
+    /* Remove underline */
+    transition: color 0.3s ease, text-decoration 0.3s ease;
+    /* Smooth transition */
+}
+
+a:hover {
+    color: #0056b3;
+    /* Darker blue on hover */
+    text-decoration: underline;
+    /* Underline on hover */
+}
+
+a:active {
+    color: #003f7f;
+    /* Even darker blue when active */
+}
+
+a:visited {
+    color: #6c757d;
+    /* Grayish color for visited links */
+}
