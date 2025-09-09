@@ -15,6 +15,7 @@ export interface Edge {
     from: string;
     to: string;
     label: string;
+    loopAngle?: number;
 }
 
 export interface DataContextType {

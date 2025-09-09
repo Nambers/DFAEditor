@@ -53,15 +53,8 @@ const LatexExport: React.FC<LatexExportProps> = ({ isOpen, onClose }) => {
             // Add state option
             nodeOptions.push('state');
 
-            // Add initial option for first node
-            if (index === 0 && toggleInitial) {
-                nodeOptions.push('initial');
-            }
-
-            // Add accepting option if node is accepting
-            if (node.accept) {
-                nodeOptions.push('accepting');
-            }
+            if (index === 0 && toggleInitial) nodeOptions.push('initial');
+            if (node.accept) nodeOptions.push('accepting');
 
             const optionsStr = nodeOptions.join(',');
 
@@ -100,7 +93,18 @@ const LatexExport: React.FC<LatexExportProps> = ({ isOpen, onClose }) => {
 
                     if (edge.from === edge.to) {
                         // Self-loop
-                        latex += ` edge [loop above] node {${edge.label}} ()`;
+                        const getLoopDirection = (angle: number): string => {
+                            if (angle >= -45 && angle < 45) {
+                                return 'right';
+                            } else if (angle >= 45 && angle < 135) {
+                                return 'below';
+                            } else if (angle >= 135 || angle < -135) {
+                                return 'left';
+                            } else {
+                                return 'above';
+                            }
+                        };
+                        latex += ` edge [loop ${getLoopDirection(edge.loopAngle || 0)}] node {${edge.label}} ()`;
                     } else {
                         // Regular edge
                         const isSwap = shouldSwapLabel(fromNode, toNode, edge);
@@ -258,7 +262,7 @@ const LatexExport: React.FC<LatexExportProps> = ({ isOpen, onClose }) => {
                                 <input
                                     type="checkbox"
                                     checked={toggleInitial}
-                                    onChange={() => { }}
+                                    onChange={(e) => setToggleInitial(e.target.checked)}
                                     style={{ transform: 'scale(1.2)', cursor: 'not-allowed' }}
                                 />
                                 <div style={{ fontSize: '11px', color: '#999', marginTop: '3px' }}>

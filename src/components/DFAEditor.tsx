@@ -13,6 +13,7 @@ const DFAEditor: React.FC = () => {
     const [connectingPreview, setConnectingPreview] = useState<{ x: number; y: number } | null>(null);
     const [selectedNode, setSelectedNode] = useState<string | null>(null);
     const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
+    const [draggingLoopEdge, setDraggingLoopEdge] = useState<string | null>(null);
     const [editingNode, setEditingNode] = useState<string | null>(null);
     const [editingEdge, setEditingEdge] = useState<string | null>(null);
     const [tempLabel, setTempLabel] = useState('');
@@ -61,6 +62,36 @@ const DFAEditor: React.FC = () => {
             setDragging(nodeId);
         }
     }, [getSVGPoint]);
+
+    // drag self-loop edge
+    const handleLoopEdgeMouseDown = useCallback((edgeId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setDraggingLoopEdge(edgeId);
+    }, []);
+
+    const handleLoopEdgeMouseMove = useCallback((e: React.MouseEvent) => {
+        if (draggingLoopEdge) {
+            const edge = edges.find(ed => ed.id === draggingLoopEdge);
+            if (!edge) return;
+            const fromNode = nodes.find(n => n.id === edge.from);
+            if (!fromNode) return;
+            const { x, y } = getSVGPoint(e);
+
+            // Calculate angle from node center to mouse position
+            const dx = x - fromNode.x;
+            const dy = y - fromNode.y;
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI); // Convert to degrees (-180 to 180)
+
+            setEdges(prev => prev.map(ed =>
+                ed.id === draggingLoopEdge ? { ...ed, loopAngle: angle } : ed
+            ));
+        }
+    }, [draggingLoopEdge, edges, nodes, getSVGPoint]);
+
+    const handleLoopEdgeMouseUp = useCallback(() => {
+        setDraggingLoopEdge(null);
+    }, []);
+
 
     // preview of dragging or connecting
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -215,36 +246,50 @@ const DFAEditor: React.FC = () => {
         if (!fromNode || !toNode) return { path: '', labelX: 0, labelY: 0 };
 
         if (edge.from === edge.to) {
-            // Self-loop
-            const cx = fromNode.x;
-            const cy = fromNode.y - 50;
-            const path = `M ${fromNode.x} ${fromNode.y - 30} 
-                   C ${fromNode.x - 30} ${fromNode.y - 60}, 
-                     ${fromNode.x + 30} ${fromNode.y - 60}, 
-                     ${fromNode.x} ${fromNode.y - 30}`;
+            // Self-loop with rotation angle
+            const angle = (edge.loopAngle ?? -90) * (Math.PI / 180); // Convert degrees to radians, default: upward
+            const radius = 150;
+            const labelRadius = 100; // Separate radius for label position
+
+            // Label position at the same distance as arrow
+            const labelX = fromNode.x + Math.cos(angle) * labelRadius;
+            const labelY = fromNode.y + Math.sin(angle) * labelRadius;
+
+            // Calculate control points for Bezier curve
+            const cp1x = fromNode.x + Math.cos(angle - 0.7) * radius;
+            const cp1y = fromNode.y + Math.sin(angle - 0.7) * radius;
+            const cp2x = fromNode.x + Math.cos(angle + 0.7) * radius;
+            const cp2y = fromNode.y + Math.sin(angle + 0.7) * radius;
+
+            // Start/end point on node edge
+            const startX = fromNode.x + Math.cos(angle) * 30;
+            const startY = fromNode.y + Math.sin(angle) * 30;
+
+            const path = `M ${startX} ${startY}
+       C ${cp1x} ${cp1y}, 
+         ${cp2x} ${cp2y}, 
+         ${startX} ${startY}`;
+
             return {
                 path,
-                labelX: cx,
-                labelY: cy - 10, // label above the loop
+                labelX: labelX,
+                labelY: labelY,
                 isLoop: true
             };
         } else {
-            // Normal edge
+            // Normal edge (unchanged)
             const dx = toNode.x - fromNode.x;
             const dy = toNode.y - fromNode.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            // calculate start and end points offset by node radius (30)
             const startX = fromNode.x + (dx / distance) * 30;
             const startY = fromNode.y + (dy / distance) * 30;
             const endX = toNode.x - (dx / distance) * 30;
             const endY = toNode.y - (dy / distance) * 30;
 
-            // calculate mid point for label
             const midX = (startX + endX) / 2;
             const midY = (startY + endY) / 2;
 
-            // offset label position perpendicular to the edge
             const perpX = -dy / distance * 15;
             const perpY = dx / distance * 15;
 
@@ -272,8 +317,8 @@ const DFAEditor: React.FC = () => {
                 width="100%"
                 height="calc(100vh - 60px)"
                 onDoubleClick={handleDoubleClick}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
+                onMouseMove={(e) => { handleMouseMove(e); handleLoopEdgeMouseMove(e); }}
+                onMouseUp={(e) => { handleMouseUp(); handleLoopEdgeMouseUp(); }}
                 onClick={handleSVGClick}
                 style={{ cursor: connecting ? 'crosshair' : 'default' }}
             >
@@ -320,15 +365,38 @@ const DFAEditor: React.FC = () => {
                                 markerEnd={isLoop ? undefined : "url(#arrowhead)"}
                                 onDoubleClick={(e) => handleEdgeDoubleClick(edge.id, e)}
                                 onClick={(e) => handleEdgeClick(edge.id, e)}
+                                onMouseDown={(e) => isLoop && handleLoopEdgeMouseDown(edge.id, e)}
                                 style={{ cursor: 'pointer' }}
                             />
 
-                            {isLoop && (
-                                <polygon
-                                    points={`${labelX - 15},${labelY + 10} ${labelX + 15},${labelY + 25} ${labelX - 15},${labelY + 40}`}
-                                    fill={isSelected ? "blue" : "black"}
-                                />
-                            )}
+                            {isLoop && (() => {
+                                const angle = (edge.loopAngle ?? -90) * (Math.PI / 180);
+                                const fromNode = nodes.find(n => n.id === edge.from)!;
+
+                                const arrowDistance = 35; // Much closer to the node edge (node radius is 30)
+                                const arrowX = fromNode.x + Math.cos(angle) * arrowDistance + 5;
+                                const arrowY = fromNode.y + Math.sin(angle) * arrowDistance;
+
+                                // Calculate arrow direction (pointing toward the node)
+                                const arrowAngle = angle + Math.PI; // Point toward the center
+                                const arrowSize = 12;
+
+                                // Create arrow polygon pointing toward the node
+                                const points = [
+                                    [arrowX + Math.cos(arrowAngle + 2.5) * arrowSize, arrowY + Math.sin(arrowAngle + 2.5) * arrowSize],
+                                    [arrowX + Math.cos(arrowAngle) * arrowSize * 1.5, arrowY + Math.sin(arrowAngle) * arrowSize * 1.5],
+                                    [arrowX + Math.cos(arrowAngle - 2.5) * arrowSize, arrowY + Math.sin(arrowAngle - 2.5) * arrowSize]
+                                ].map(([x, y]) => `${x},${y}`).join(' ');
+
+                                return (
+                                    <polygon
+                                        points={points}
+                                        fill={isSelected ? "blue" : "black"}
+                                        style={{ cursor: 'grab' }}
+                                        onMouseDown={(e) => handleLoopEdgeMouseDown(edge.id, e)}
+                                    />
+                                );
+                            })()}
 
                             {/* rendering edge label */}
                             {editingEdge === edge.id ? (
