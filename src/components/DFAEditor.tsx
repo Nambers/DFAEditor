@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, createContext } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { DataContext } from './DataProvider';
 import type { Node, Edge } from './DataProvider';
 
@@ -7,7 +7,7 @@ const DFAEditor: React.FC = () => {
     if (!context) {
         throw new Error('DFAEditor must be used within a DataContext provider');
     }
-    const { nodes, setNodes, edges, setEdges } = context;
+    const { nodes, setNodes, edges, setEdges, nextNodeId, nextEdgeId } = context;
     const [dragging, setDragging] = useState<string | null>(null);
     const [connecting, setConnecting] = useState<string | null>(null);
     const [connectingPreview, setConnectingPreview] = useState<{ x: number; y: number } | null>(null);
@@ -19,8 +19,6 @@ const DFAEditor: React.FC = () => {
     const [tempLabel, setTempLabel] = useState('');
 
     const svgRef = useRef<SVGSVGElement>(null);
-    const nextNodeId = useRef(0);
-    const nextEdgeId = useRef(0);
 
     const getSVGPoint = useCallback((e: React.MouseEvent | MouseEvent): { x: number; y: number } => {
         if (!svgRef.current) return { x: 0, y: 0 };

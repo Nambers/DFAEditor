@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useRef } from 'react';
 import Editor from './DFAEditor';
 import LatexExport from './DFA2Latex';
 import { Toaster, toast } from 'sonner'
@@ -24,6 +24,8 @@ export interface DataContextType {
     setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
     edges: Edge[];
     setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+    nextNodeId: React.RefObject<number>;
+    nextEdgeId: React.RefObject<number>;
 }
 
 export const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -31,6 +33,8 @@ export const DataContext = createContext<DataContextType | undefined>(undefined)
 export default function DataProvider() {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
+    const nextNodeId = useRef(0);
+    const nextEdgeId = useRef(0);
     const [isLatexModalOpen, setIsLatexModalOpen] = useState(false);
 
     const saveToLocalStorage = () => {
@@ -43,8 +47,14 @@ export default function DataProvider() {
         const data = localStorage.getItem('dfaData');
         if (data) {
             const parsed = JSON.parse(data);
-            setNodes(parsed.nodes || []);
-            setEdges(parsed.edges || []);
+            const p_n = parsed.nodes || [];
+            const p_e = parsed.edges || [];
+            setNodes(p_n);
+            setEdges(p_e);
+            const currNodeId = p_n.at(-1)?.id;
+            if (currNodeId) { nextNodeId.current = parseInt(currNodeId.split('_').at(1)!) + 1; }
+            const currEdgeId = p_e.at(-1)?.id;
+            if (currEdgeId) { nextEdgeId.current = parseInt(currEdgeId.split('_').at(1)!) + 1; }
             toast.success('DFA loaded from local storage!');
         } else {
             toast.error('No DFA data found in local storage.');
@@ -58,7 +68,7 @@ export default function DataProvider() {
     return (
         <>
             <Toaster />
-            <DataContext.Provider value={{ nodes, setNodes, edges, setEdges }}>
+            <DataContext.Provider value={{ nodes, setNodes, edges, setEdges, nextNodeId, nextEdgeId }}>
                 <div style={{ display: 'flex', height: '100vh' }}>
                     <div style={{ flex: 1 }}>
                         <Editor />
