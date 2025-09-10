@@ -108,9 +108,7 @@ const LatexExport: React.FC<LatexExportProps> = ({ isOpen, onClose }) => {
                         latex += ` edge [loop ${getLoopDirection(edge.loopAngle || 0)}] node {${edge.label}} ()`;
                     } else {
                         // Regular edge
-                        const isSwap = shouldSwapLabel(fromNode, toNode, edge);
-                        const swapStr = isSwap ? ' [swap]' : '';
-                        latex += ` edge node${swapStr} {${edge.label}} (${toNode.id})`;
+                        latex += ` edge node {${edge.label}} (${toNode.id})`;
                     }
 
                     if (edgeIndex < nodeEdges.length - 1) {
@@ -130,12 +128,6 @@ const LatexExport: React.FC<LatexExportProps> = ({ isOpen, onClose }) => {
 
         setGeneratedLatex(latex);
     }, [nodes, edges, targetMaxWidth, targetMaxHeight, nodeDistance, shortenArrows]);
-
-    // Helper function to determine if label should be swapped
-    const shouldSwapLabel = (fromNode: Node, toNode: Node, edge: Edge): boolean => {
-        // Simple heuristic: swap if target is below source
-        return toNode.y > fromNode.y;
-    };
 
     const copyToClipboard = useCallback(async () => {
         try {
